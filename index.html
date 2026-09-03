@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eisenbahn-Tycoon: Ultimate Empire</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+
+    <style>
+        :root {
+            --paper: #EDE6D3;
+            --ink: #141A1F;
+            --ink-soft: #202B35;
+            --rail-green: #2E6B48;
+            --signal-red: #B4472B;
+            --signal-yellow: #D99B26;
+            --signal-blue: #2F80ED;
+            --brass: #C7A24B;
+            --brass-light: #E0C36F;
+            --steel: #6C7D88;
+            --bot1-color: #9B51E0;
+            --bot2-color: #E67E22;
+            --lvl1: #6C7D88;
+            --lvl2: #2E6B48;
+            --lvl3: #C7A24B;
+            --lvl4: #B4472B;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--ink);
+            color: var(--paper);
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--ink);
+            padding: 8px 16px;
+            border-bottom: 2px solid var(--brass);
+            flex-wrap: wrap;
+            gap: 10px;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 17px;
+            color: var(--brass-light);
+        }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            line-height: 1.1;
+        }
+
+        .stat .label {
+            font-size: 8.5px;
+            color: var(--steel);
+            text-transform: uppercase;
+        }
+
+        .stat .value {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--paper);
+            transition: color 0.3s ease;
+        }
+
+        .stat .value.money {
+            color: var(--brass-light);
+        }
+
+        .stat .value.money.danger {
+            color: var(--signal-red);
+            animation: pulseWarn 1s infinite;
+        }
+
+        @keyframes pulseWarn {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        .stat .value.expense {
+            color: var(--signal-red);
+        }
+
+        .reputation-stars {
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .top-btn {
+            background: var(--ink-soft);
+            border: 1px solid var(--brass);
+            color: var(--paper);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+
+        .top-btn:hover {
+            background: var(--brass);
+            color: var(--ink);
+        }
+
+        .btn-reset-danger {
+            background: linear-gradient(135deg, #B4472B, #7D2612);
+            border: 1px solid #ff6b4a;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .btn-reset-danger:hover {
+            background: #ff472b;
+        }
+
+        .speed-control {
+            display: flex;
+            gap: 2px;
+            background: var(--ink-soft);
+            padding: 2px;
+            border-radius: 4px;
+            border: 1px solid var(--steel);
+        }
+
+        .speed-btn {
+            background: transparent;
+            border: none;
+            color: var(--paper);
+            padding: 2px 6px;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .speed-btn.active {
+            background: var(--brass);
+            color: var(--ink);
+            font-weight: bold;
+        }
+
+        #main {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #sidebar {
+            width: 390px;
+            flex-shrink: 0;
+            background: var(--ink-soft);
+            border-right: 2px solid rgba(199, 162, 75, 0.3);
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        details.panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(199, 162, 75, 0.2);
+            border-radius: 6px;
+            padding: 8px 10px;
+        }
+
+        summary.panel-header {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--brass-light);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+        }
+
+        .panel-content {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .action-btn {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--ink);
+            color: var(--paper);
+            border: 1px solid var(--steel);
+            border-radius: 4px;
+            padding: 7px 10px;
+            font-size: 11.5px;
+            cursor: pointer;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            border-color: var(--brass);
+            background: #232E38;
+        }
+
+        .action-btn.active {
+            border-color: var(--brass);
+            background: var(--rail-green);
+            color: white;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .action-btn .cost {
+            font-family: monospace;
+            color: var(--brass-light);
+            font-size: 11px;
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--brass-light);
+            margin: 2px;
+            font-style: italic;
+        }
+
+        .card {
+            background: var(--ink);
+            border: 1px solid rgba(199, 162, 75, 0.25);
+            border-radius: 5px;
+            padding: 8px;
+            font-size: 11.5px;
+        }
+
+        .card .row1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .card .name {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .badge {
+            font-family: monospace;
+            font-size: 9.5px;
+            color: var(--ink);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: 700;
+            background: var(--brass);
+        }
+
+        .card .meta {
+            color: var(--steel);
+            font-size: 10.5px;
+            margin-bottom: 3px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 3px 0;
+        }
+
+        .progress-bar>div {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        .mini-btn {
+            background: var(--rail-green);
+            color: var(--paper);
+            border: none;
+            border-radius: 3px;
+            padding: 4px 7px;
+            font-size: 10.5px;
+            cursor: pointer;
+            margin-right: 3px;
+            margin-top: 3px;
+        }
+
+        .mini-btn.secondary {
+            background: var(--steel);
+        }
+
+        .mini-btn.blue {
+            background: var(--signal-blue);
+        }
+
+        .mini-btn.purple {
+            background: var(--bot1-color);
+        }
+
+        .mini-btn.gold {
+            background: var(--brass);
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .mini-btn.red {
+            background: var(--signal-red);
+        }
+
+        .mini-btn:hover:not(:disabled) {
+            filter: brightness(1.15);
+        }
+
+        .mini-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        #map-wrap {
+            flex: 1;
+            position: relative;
+            background: var(--paper);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #d4dadc;
+            transition: filter 1s ease;
+        }
+
+        #map.night-mode {
+            filter: brightness(0.6) opacity(0.9) contrast(1.1);
+        }
+
+        #map.rain-mode {
+            filter: brightness(0.75) saturate(0.7) contrast(1.05);
+        }
+
+        #map-wrap.mode-build #map,
+        #map-wrap.mode-stellwerk #map {
+            cursor: crosshair;
+        }
+
+        #map-wrap.mode-connect #map {
+            cursor: pointer;
+        }
+
+        .train-outer {
+            width: 22px;
+            height: 22px;
+            position: relative;
+        }
+
+        .train-inner {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 20px;
+            height: 10px;
+            margin: -5px 0 0 -10px;
+        }
+
+        .train-body {
+            width: 20px;
+            height: 10px;
+            border-radius: 3px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+            position: relative;
+        }
+
+        .train-body.broken {
+            animation: brokenFlicker 0.5s infinite;
+        }
+
+        @keyframes brokenFlicker {
+
+            0%,
+            100% {
+                filter: brightness(1);
+            }
+
+            50% {
+                filter: brightness(0.4) saturate(0);
+            }
+        }
+
+        .night-mode .train-body::after {
+            content: '';
+            position: absolute;
+            right: -12px;
+            top: -5px;
+            width: 0;
+            height: 0;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            border-right: 20px solid rgba(255, 245, 180, 0.6);
+            transform: rotate(180deg);
+            pointer-events: none;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 200, 0.9));
+        }
+
+        .station-wrap {
+            position: relative;
+        }
+
+        .station-ring {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform: translate(-50%, -50%);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--ink);
+            border: 3px solid var(--lvl1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--brass-light);
+            cursor: pointer;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .station-ring.selected {
+            border-color: var(--signal-yellow);
+            box-shadow: 0 0 0 4px rgba(217, 155, 38, 0.6);
+        }
+
+        .station-ring.overcrowded {
+            box-shadow: 0 0 0 4px rgba(180, 71, 43, 0.7);
+            animation: overcrowdPulse 1s infinite;
+        }
+
+        @keyframes overcrowdPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 3px rgba(180, 71, 43, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 0 7px rgba(180, 71, 43, 0.2);
+            }
+        }
+
+        .station-label {
+            position: absolute;
+            left: 0;
+            top: -16px;
+            transform: translate(-50%, -100%);
+            white-space: nowrap;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--ink);
+            background: rgba(237, 230, 211, 0.95);
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid rgba(124, 90, 58, 0.3);
+            pointer-events: none;
+        }
+
+        .station-passengers {
+            position: absolute;
+            left: 0;
+            top: 14px;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 9px;
+            color: var(--paper);
+            background: var(--ink);
+            padding: 1px 4px;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+
+        .station-passengers.full {
+            color: var(--signal-red);
+            font-weight: bold;
+        }
+
+        .industry-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--brass);
+            border: 2px solid var(--paper);
+            color: var(--ink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(199, 162, 75, 0.8);
+        }
+
+        .stellwerk-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            background: var(--signal-blue);
+            border: 2px solid var(--paper);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .steam-cloud {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            animation: steamFade 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes steamFade {
+            0% {
+                opacity: 0.8;
+                transform: translate(-50%, -50%) scale(0.6);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -18px) scale(2.2);
+            }
+        }
+
+        .income-float,
+        .expense-float {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 11px;
+            text-shadow: 0 0 3px #000;
+            animation: floatUp 1.2s ease-out forwards;
+            pointer-events: none;
+        }
+
+        .income-float {
+            color: #27ae60;
+        }
+
+        .expense-float {
+            color: var(--signal-red);
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -5px);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -35px);
+            }
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .toast {
+            background: var(--ink);
+            color: var(--paper);
+            border: 1px solid var(--brass);
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-size: 11.5px;
+            animation: toastIn 0.25s ease;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .toast.error {
+            border-color: var(--signal-red);
+        }
+
+        .toast.success {
+            border-color: #27ae60;
+        }
+
+        .station-cluster {
+            background: var(--ink);
+            border: 3px solid var(--brass);
+            border-radius: 50%;
+            color: var(--brass-light);
+            font-weight: 700;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(199, 162, 75, 0.6);
+        }
+
+        .station-cluster.small {
+            width: 32px;
+            height: 32px;
+            font-size: 12px;
+        }
+
+        .station-cluster.medium {
+            width: 40px;
+            height: 40px;
+            font-size: 13px;
+            border-color: var(--signal-yellow);
+        }
+
+        .station-cluster.large {
+            width: 48px;
+            height: 48px;
+            font-size: 14px;
+            border-color: var(--signal-red);
+        }
+
+        #finance-chart {
+            width: 100%;
+            height: 90px;
+            background: var(--ink);
+            border: 1px solid var(--steel);
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        #gameover-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        #gameover-overlay h1 {
+            color: var(--signal-red);
+            font-size: 32px;
+            margin-bottom: 6px;
+        }
+
+        #gameover-overlay p {
+            color: var(--paper);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <header id="topbar">
+            <div class="brand">🚂 Eisenbahn-Tycoon: Empire</div>
+            <div class="stats">
+                <div class="stat"><span class="label">Guthaben</span><span id="stat-money" class="value money">€0</span>
+                </div>
+                <div class="stat"><span class="label">Kredit</span><span id="stat-loan" class="value expense">€0</span>
+                </div>
+                <div class="stat"><span class="label">Zeit / Tag</span><span id="stat-time" class="value">08:00 (Tag
+                        1)</span></div>
+                <div class="stat"><span class="label">Wetter</span><span id="stat-weather" class="value">☀️
+                        Sonnig</span></div>
+                <div class="stat"><span class="label">Tägl. Unterhalt</span><span id="stat-upkeep"
+                        class="value expense">-€0</span></div>
+                <div class="stat"><span class="label">Ruf</span><span id="stat-reputation"
+                        class="value reputation-stars">★★★☆☆</span></div>
+                <div class="stat"><span class="label">Bahnhöfe</span><span id="stat-stations" class="value">0</span>
+                </div>
+                <div class="stat"><span class="label">Züge</span><span id="stat-trains" class="value">0</span></div>
+
+                <div class="speed-control">
+                    <button class="speed-btn" data-speed="0">⏸️</button>
+                    <button class="speed-btn active" data-speed="1">▶️ 1x</button>
+                    <button class="speed-btn" data-speed="2">⏩ 2x</button>
+                    <button class="speed-btn" data-speed="4">⚡ 4x</button>
+                </div>
+
+                <button id="btn-reset" class="top-btn btn-reset-danger">💥 Neustart</button>
+            </div>
+        </header>
+
+        <div id="main">
+            <aside id="sidebar">
+                <details class="panel" open>
+                    <summary class="panel-header">⚡ Ereignis-Status</summary>
+                    <div class="panel-content">
+                        <div id="event-banner"
+                            style="font-size:11px; color:var(--brass-light); background:rgba(0,0,0,0.4); padding:6px; border-radius:4px; border:1px solid var(--steel);">
+                            Normaler Betrieb. Keine aktiven Störungen.
+                        </div>
+                    </div>
+                </details>
+
+                <details class="panel" open>
+                    <summary class="panel-header">🏛️ Bank & Finanzen</summary>
+                    <div class="panel-content">
+                        <div style="display:flex; gap:4px;">
+                            <button id="btn-take-loan" class="mini-btn blue" style="flex:1;">Kredit +€5.000</button>
+                            <button id="btn-repay-loan" class="mini-btn secondary" style="flex:1;">Tilgen
+                                €5.000</button>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <label style="font-size:10.5px; color:var(--steel);">Ticketpreis-Strategie:</label>
+                            <select id="select-ticket-price"
+                                style="width:100%; background:var(--ink); color:var(--paper); border:1px solid var(--steel); border-radius:3px; padding:3px; font-size:11px; margin-top:2px;">
+                                <option value="0.8">Günstig (Hohe Fahrgast-Nachfrage)</option>
+                                <option value="1.0" selected>Standard (Ausgewogen)</option>
+                                <option value="1.5">Teuer (+50% Preis, -40% Fahrgäste)</option>
+                                <option value="2.0">Luxus (+100% Preis, -70% Fahrgäste)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <span style="font-size:10px; color:var(--steel);">Umsatzverlauf (Letzte 10 Tage):</span>
+                            <canvas id="finance-chart"></canvas>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="panel" open>
+                    <summary class="panel-header">🛤️ Infrastruktur & Bau</summary>
+                    <div class="panel-content">
+                        <button id="btn-build-station" class="action-btn">🚉 Bahnhof bauen <span class="cost"
+                                id="cost-station"></span></button>
+                        <button id="btn-build-route" class="action-btn">🛤️ Streckenverbindung</button>
+                        <button id="btn-build-stellwerk" class="action-btn">📶 Stellwerk bauen <span
+                                class="cost">€1.200</span></button>
+
+                        <div id="line-builder-controls" style="display:none;margin-top:6px;">
+                            <button id="btn-finish-line" class="action-btn active">✅ Strecke verbinden <span
+                                    class="cost" id="cost-current-line">€0</span></button>
+                            <button id="btn-cancel-line" class="mini-btn secondary"
+                                style="width:100%;margin-top:4px;">Abbrechen</button>
+                        </div>
+                        <p class="hint" id="hint"></p>
+                    </div>
+                </details>
+
+                <details class="panel" open>
+                    <summary class="panel-header">🏢 Bahnhöfe Verwaltung</summary>
+                    <div class="panel-content" id="station-list"></div>
+                </details>
+
+                <details class="panel" open>
+                    <summary class="panel-header">🚂 Fuhrpark & Beschaffung</summary>
+                    <div class="panel-content">
+                        <button class="action-btn" id="btn-buy-cargo">🚂 Güterzug <span class="cost"
+                                id="cost-cargo"></span></button>
+                        <button class="action-btn" id="btn-buy-regio">🚃 Regionalbahn <span class="cost"
+                                id="cost-regio"></span></button>
+                        <button class="action-btn" id="btn-buy-ice">🚄 ICE-Express (⚡Oberleitung nöt.) <span
+                                class="cost" id="cost-ice"></span></button>
+                    </div>
+                </details>
+
+                <details class="panel" open>
+                    <summary class="panel-header">🏭 Züge im Einsatz</summary>
+                    <div class="panel-content" id="train-list"></div>
+                </details>
+
+                <details class="panel">
+                    <summary class="panel-header">📜 Strecken & Gleis-Ausbau</summary>
+                    <div class="panel-content" id="route-list"></div>
+                </details>
+
+                <details class="panel">
+                    <summary class="panel-header">🏗️ Industrie & Frachtgut</summary>
+                    <div class="panel-content" id="industry-list"></div>
+                </details>
+
+                <details class="panel">
+                    <summary class="panel-header">🏆 Erfolge</summary>
+                    <div class="panel-content" id="achievement-list"></div>
+                </details>
+            </aside>
+
+            <main id="map-wrap">
+                <div id="map"></div>
+            </main>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div id="gameover-overlay">
+        <h1>💥 BANKROTT</h1>
+        <p>Deine Bahngesellschaft musste Insolvenz anmelden. Zu hohe Schulden, zu wenig Einnahmen.</p>
+        <button id="btn-gameover-restart" class="top-btn btn-reset-danger">Neu starten</button>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const GAME_TIME_SCALE = 15;
+            let gameSpeedMultiplier = 1;
+
+            const CITY_NAMES = [
+                "Berlin", "Hamburg", "München", "Köln", "Frankfurt", "Stuttgart", "Düsseldorf",
+                "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden", "Hannover", "Nürnberg",
+                "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster", "Karlsruhe",
+                "Mannheim", "Augsburg", "Wiesbaden", "Gelsenkirchen", "Mönchengladbach", "Braunschweig",
+                "Aachen", "Kiel", "Chemnitz", "Halle", "Magdeburg", "Freiburg", "Krefeld", "Mainz"
+            ];
+
+            const WEATHER_TYPES = [
+                { key: "sun", label: "☀️ Sonnig", speedMult: 1.0, wearMult: 1.0 },
+                { key: "rain", label: "🌧️ Regen", speedMult: 0.85, wearMult: 1.3 },
+                { key: "storm", label: "⛈️ Sturm", speedMult: 0.6, wearMult: 1.8 },
+                { key: "snow", label: "❄️ Schnee", speedMult: 0.5, wearMult: 1.6 },
+                { key: "fog", label: "🌫️ Nebel", speedMult: 0.75, wearMult: 1.1 }
+            ];
+
+            let audioCtx = null;
+            function getAudioCtx() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                return audioCtx;
+            }
+            function playSound(type) {
+                const ctx = getAudioCtx();
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                const now = ctx.currentTime;
+
+                if (type === 'build') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'cash') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.25);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'reset') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+                    gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'upgrade') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(660, now + 0.1);
+                    osc.frequency.setValueAtTime(880, now + 0.2);
+                    gain.gain.setValueAtTime(0.12, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'alarm') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(180, now);
+                    gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.35);
+                    osc.start(now); osc.stop(now + 0.35);
+                }
+            }
+
+            const HARDCORE_CONFIG = {
+                dailyStationUpkeep: 40,
+                dailyTrackUpkeepPerKm: 2,
+                repairCostPerPoint: 10,
+                paxGrowthRate: 0.25,
+                stellwerkUpkeep: 60,
+                loanInterestRate: 0.05
+            };
+
+            const STATION_UPGRADE_BASE_COST = 900;
+            const STATION_MAX_LEVEL = 4;
+
+            const TRAIN_TYPES = {
+                cargo: { label: "Güterzug", icon: "🚂", baseCost: 1200, costStep: 300, speed: 20, capacity: 0, upkeep: 50, fuelPerKm: 0.30, color: "var(--steel)" },
+                regio: { label: "Regionalbahn", icon: "🚃", baseCost: 1800, costStep: 500, speed: 35, capacity: 120, upkeep: 80, fuelPerKm: 0.40, color: "var(--rail-green)" },
+                ice: { label: "ICE-Express", icon: "🚄", baseCost: 5000, costStep: 1500, speed: 70, capacity: 250, upkeep: 200, fuelPerKm: 1.10, color: "var(--signal-red)", requireElectric: true }
+            };
+
+            const LEVEL_COLORS = ['var(--lvl1)', 'var(--lvl2)', 'var(--lvl3)', 'var(--lvl4)'];
+            const STATION_BASE_COST = 350, STATION_COST_STEP = 150;
+            const ROUTE_BASE_COST = 200, ROUTE_PER_KM = 5;
+            const STELLWERK_COST = 1200;
+            const BANKRUPTCY_THRESHOLD = -15000;
+            const STATION_DWELL_MINUTES = 6;
+
+            let game = {
+                money: 18000,
+                loan: 0,
+                ticketPriceMultiplier: 1.0,
+                gameMinutes: 8 * 60,
+                day: 1,
+                totalKm: 0,
+                reputation: 60,
+                weather: WEATHER_TYPES[0],
+                weatherTimer: 240,
+                stations: [],
+                routes: [],
+                trains: [],
+                stellwerke: [],
+                industries: [],
+                revenueHistory: [200, 450, 800, 1200, 1100, 1600, 2100],
+                activeEvent: null,
+                eventTimer: 0,
+                nextId: 1,
+                mode: null,
+                selectedLineStations: [],
+                tempPolyline: null,
+                stationBuildCount: 0,
+                trainCounts: { cargo: 0, regio: 0, ice: 0 },
+                gameOver: false,
+                unlockedAchievements: []
+            };
+
+            const ACHIEVEMENTS = [
+                { id: 'first_station', label: '🚉 Erste Station', check: g => g.stations.length >= 1 },
+                { id: 'first_route', label: '🛤️ Erste Strecke', check: g => g.routes.length >= 1 },
+                { id: 'fleet5', label: '🚂 Kleine Flotte (5 Züge)', check: g => g.trains.length >= 5 },
+                { id: 'millionaire', label: '💰 Millionär', check: g => g.money >= 1000000 },
+                { id: 'network10', label: '🌐 Großes Netz (10 Bahnhöfe)', check: g => g.stations.length >= 10 },
+                { id: 'ice_owner', label: '🚄 ICE im Einsatz', check: g => g.trainCounts.ice >= 1 },
+                { id: 'full_upgrade', label: '🏗️ Voll ausgebauter Bahnhof', check: g => g.stations.some(s => s.level >= STATION_MAX_LEVEL) },
+                { id: 'reputation_max', label: '⭐ Makelloser Ruf', check: g => g.reputation >= 95 },
+                { id: 'survivor30', label: '📅 30 Tage im Geschäft', check: g => g.day >= 30 }
+            ];
+
+            function checkAchievements() {
+                ACHIEVEMENTS.forEach(a => {
+                    if (!game.unlockedAchievements.includes(a.id) && a.check(game)) {
+                        game.unlockedAchievements.push(a.id);
+                        toast(`🏆 Erfolg freigeschaltet: ${a.label}`, 'success');
+                        playSound('upgrade');
+                    }
+                });
+            }
+
+            function fmt(n) { return "€" + Math.round(n).toLocaleString('de-DE'); }
+            function uid() { return game.nextId++; }
+            function stationBuildCost() { return STATION_BASE_COST + game.stationBuildCount * STATION_COST_STEP; }
+            function stationUpgradeCost(st) { return Math.round(STATION_UPGRADE_BASE_COST * Math.pow(1.8, st.level - 1)); }
+            function trainCost(type) { return TRAIN_TYPES[type].baseCost + game.trainCounts[type] * TRAIN_TYPES[type].costStep; }
+            function maxPassengersFor(st) { return st.level * 150; }
+            function getStation(id) { return game.stations.find(s => s.id === id); }
+
+            function getRandomCityName() {
+                const usedNames = game.stations.map(s => s.name);
+                const available = CITY_NAMES.filter(name => !usedNames.includes(name) && !usedNames.includes(name + " Hbf"));
+                if (available.length > 0) {
+                    const name = available[Math.floor(Math.random() * available.length)];
+                    return name + " Hbf";
+                }
+                return "Bahnhof " + (game.stationBuildCount + 1);
+            }
+
+            function calculateLineDistance(stationIds) {
+                let total = 0;
+                for (let i = 0; i < stationIds.length - 1; i++) {
+                    const a = getStation(stationIds[i]);
+                    const b = getStation(stationIds[i + 1]);
+                    if (a && b) total += a.latlng.distanceTo(b.latlng) / 1000;
+                }
+                return total;
+            }
+
+            function lineCostForKm(km) { return Math.round(ROUTE_BASE_COST + km * ROUTE_PER_KM); }
+
+            function calculateDailyUpkeep() {
+                let stationUpkeep = game.stations.reduce((sum, s) => sum + (HARDCORE_CONFIG.dailyStationUpkeep * s.level), 0);
+                let trackUpkeep = game.routes.reduce((sum, r) => sum + r.km, 0) * HARDCORE_CONFIG.dailyTrackUpkeepPerKm;
+                let trainUpkeep = game.trains.reduce((sum, t) => sum + TRAIN_TYPES[t.type].upkeep, 0);
+                let stellwerkUpkeep = game.stellwerke.length * HARDCORE_CONFIG.stellwerkUpkeep;
+                let loanInterest = game.loan * HARDCORE_CONFIG.loanInterestRate;
+                return Math.round(stationUpkeep + trackUpkeep + trainUpkeep + stellwerkUpkeep + loanInterest);
+            }
+
+            function toast(msg, type = 'info') {
+                const el = document.createElement('div');
+                el.className = 'toast' + (type === 'error' ? ' error' : (type === 'success' ? ' success' : ''));
+                el.textContent = msg;
+                document.getElementById('toast-container').appendChild(el);
+                setTimeout(() => el.remove(), 3000);
+            }
+
+            function saveGame() {
+                localStorage.setItem('schienen_save_v8', JSON.stringify({
+                    money: game.money, loan: game.loan, ticketPriceMultiplier: game.ticketPriceMultiplier,
+                    gameMinutes: game.gameMinutes, day: game.day, totalKm: game.totalKm, nextId: game.nextId,
+                    stationBuildCount: game.stationBuildCount, trainCounts: game.trainCounts,
+                    revenueHistory: game.revenueHistory, reputation: game.reputation, unlockedAchievements: game.unlockedAchievements,
+                    stations: game.stations.map(s => ({ id: s.id, name: s.name, latlng: s.latlng, level: s.level, passengers: s.passengers })),
+                    routes: game.routes.map(r => ({ id: r.id, name: r.name, stationIds: r.stationIds, km: r.km, trainId: r.trainId, isElectric: r.isElectric, isDoubleTrack: r.isDoubleTrack })),
+                    trains: game.trains.map(t => ({ id: t.id, type: t.type, name: t.name, routeId: t.routeId, segIndex: t.segIndex || 0, progress: t.progress, direction: t.direction, condition: t.condition, dwellRemaining: t.dwellRemaining || 0 })),
+                    stellwerke: game.stellwerke.map(sw => ({ id: sw.id, name: sw.name, latlng: sw.latlng })),
+                    industries: game.industries.map(i => ({ id: i.id, name: i.name, type: i.type, latlng: i.latlng, cargo: i.cargo }))
+                }));
+            }
+
+            function loadGame() {
+                const raw = localStorage.getItem('schienen_save_v8');
+                if (!raw) return false;
+                try {
+                    const data = JSON.parse(raw);
+                    Object.assign(game, data);
+                    if (!Array.isArray(game.unlockedAchievements)) game.unlockedAchievements = [];
+                    game.stations.forEach(s => { s.latlng = L.latLng(s.latlng.lat, s.latlng.lng); });
+                    game.stellwerke.forEach(sw => { sw.latlng = L.latLng(sw.latlng.lat, sw.latlng.lng); });
+                    game.industries.forEach(i => { i.latlng = L.latLng(i.latlng.lat, i.latlng.lng); });
+                    return true;
+                } catch (e) { return false; }
+            }
+
+            const map = L.map('map', { zoomControl: false, minZoom: 4 }).setView([51.1657, 10.4515], 6);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // Offline-Grid-Layer: zeichnet Kartenkacheln selbst per Canvas, ganz ohne Netzwerk.
+            // Springt garantiert ein, falls keine externe Kartenquelle erreichbar ist.
+            const OfflineGridLayer = L.GridLayer.extend({
+                createTile: function (coord) {
+                    const tile = document.createElement('canvas');
+                    const size = this.getTileSize();
+                    tile.width = size.x; tile.height = size.y;
+                    const ctx = tile.getContext('2d');
+                    ctx.fillStyle = '#d9d2ba';
+                    ctx.fillRect(0, 0, size.x, size.y);
+                    ctx.strokeStyle = 'rgba(124,90,58,0.35)';
+                    ctx.lineWidth = 1;
+                    const step = 32;
+                    for (let x = 0; x <= size.x; x += step) {
+                        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, size.y); ctx.stroke();
+                    }
+                    for (let y = 0; y <= size.y; y += step) {
+                        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size.x, y); ctx.stroke();
+                    }
+                    // grobe Land/Wasser-Andeutung, rein dekorativ
+                    ctx.fillStyle = 'rgba(124,90,58,0.06)';
+                    if ((coord.x + coord.y) % 3 === 0) ctx.fillRect(0, 0, size.x, size.y);
+                    return tile;
+                }
+            });
+
+            const TILE_SOURCES = [
+                { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', opts: { subdomains: 'abc', maxZoom: 19, attribution: '&copy; OpenStreetMap' } }
+            ];
+
+            let currentTileIdx = 0;
+            let activeTileLayer = null;
+            let tileLoadOk = false;
+            let switchTimer = null;
+
+            function scheduleSwitchCheck() {
+                clearTimeout(switchTimer);
+                switchTimer = setTimeout(() => {
+                    if (!tileLoadOk) goOffline();
+                }, 5000);
+            }
+
+            function goOffline() {
+                showMapNotice('⚠️ OpenStreetMap nicht erreichbar – Offline-Rasteransicht aktiv. Das Spiel funktioniert normal weiter.', true);
+                if (activeTileLayer) map.removeLayer(activeTileLayer);
+                activeTileLayer = new OfflineGridLayer({ maxZoom: 19 });
+                activeTileLayer.addTo(map);
+            }
+
+            function attachTileLayer(idx) {
+                const src = TILE_SOURCES[idx];
+                activeTileLayer = L.tileLayer(src.url, src.opts);
+                activeTileLayer.on('load', () => { tileLoadOk = true; clearTimeout(switchTimer); hideMapNotice(); });
+                activeTileLayer.on('tileerror', () => { if (!tileLoadOk) goOffline(); });
+                activeTileLayer.addTo(map);
+                scheduleSwitchCheck();
+            }
+
+            function showMapNotice(text, permanent) {
+                let el = document.getElementById('map-notice');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'map-notice';
+                    el.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:999;background:var(--ink);border:1px solid var(--signal-yellow);color:var(--paper);padding:6px 12px;border-radius:5px;font-size:11.5px;box-shadow:0 4px 10px rgba(0,0,0,0.5);max-width:90%;text-align:center;';
+                    document.getElementById('map-wrap').appendChild(el);
+                }
+                el.textContent = text;
+                el.style.borderColor = permanent ? 'var(--signal-red)' : 'var(--signal-yellow)';
+                if (!permanent) {
+                    clearTimeout(el._hideTimer);
+                    el._hideTimer = setTimeout(hideMapNotice, 4000);
+                }
+            }
+            function hideMapNotice() {
+                const el = document.getElementById('map-notice');
+                if (el) el.remove();
+            }
+
+            attachTileLayer(0);
+
+
+            const routePane = map.createPane('routePane'); routePane.style.zIndex = 410;
+            const stellwerkPane = map.createPane('stellwerkPane'); stellwerkPane.style.zIndex = 415;
+            const trainPane = map.createPane('trainPane'); trainPane.style.zIndex = 420;
+            const stationPane = map.createPane('stationPane'); stationPane.style.zIndex = 430;
+            const fxPane = map.createPane('fxPane'); fxPane.style.zIndex = 440;
+
+            const stationClusterGroup = L.markerClusterGroup({
+                maxClusterRadius: 45,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
+                iconCreateFunction: function (cluster) {
+                    const count = cluster.getChildCount();
+                    const sizeClass = count >= 10 ? 'large' : (count >= 5 ? 'medium' : 'small');
+                    return L.divIcon({
+                        html: `<div class="station-cluster ${sizeClass}">${count}</div>`,
+                        className: '',
+                        iconSize: null
+                    });
+                }
+            });
+            map.addLayer(stationClusterGroup);
+
+            function initWorldObjects() {
+                if (!game.industries || game.industries.length === 0) {
+                    game.industries = [
+                        { id: uid(), name: "Ruhr-Kohlegrube", type: "mine", icon: "⛏️", latlng: L.latLng(51.45, 7.01), cargo: 100 },
+                        { id: uid(), name: "Stahlwerk West", type: "factory", icon: "🏭", latlng: L.latLng(51.22, 6.77), cargo: 0 },
+                        { id: uid(), name: "Holzverarbeitung Nord", type: "sawmill", icon: "🪵", latlng: L.latLng(52.52, 13.40), cargo: 80 }
+                    ];
+                }
+            }
+
+            function reputationStars() {
+                const stars = Math.max(0, Math.min(5, Math.round(game.reputation / 20)));
+                return '★'.repeat(stars) + '☆'.repeat(5 - stars);
+            }
+
+            function renderStats() {
+                const moneyEl = document.getElementById('stat-money');
+                moneyEl.textContent = fmt(game.money);
+                moneyEl.classList.toggle('danger', game.money < 0);
+                document.getElementById('stat-loan').textContent = fmt(game.loan);
+
+                let hrs = Math.floor(game.gameMinutes / 60) % 24;
+                let mins = Math.floor(game.gameMinutes % 60);
+                document.getElementById('stat-time').textContent = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} (Tag ${game.day})`;
+                document.getElementById('stat-upkeep').textContent = '- ' + fmt(calculateDailyUpkeep());
+                document.getElementById('stat-weather').textContent = game.weather.label;
+                document.getElementById('stat-reputation').textContent = reputationStars();
+
+                document.getElementById('stat-stations').textContent = game.stations.length;
+                document.getElementById('stat-trains').textContent = game.trains.length;
+
+                document.getElementById('cost-station').textContent = fmt(stationBuildCost());
+                document.getElementById('cost-cargo').textContent = fmt(trainCost('cargo'));
+                document.getElementById('cost-regio').textContent = fmt(trainCost('regio'));
+                document.getElementById('cost-ice').textContent = fmt(trainCost('ice'));
+
+                const isNight = hrs >= 22 || hrs < 5;
+                const mapEl = document.getElementById('map');
+                mapEl.classList.toggle('night-mode', isNight);
+                mapEl.classList.toggle('rain-mode', game.weather.key === 'rain' || game.weather.key === 'storm' || game.weather.key === 'fog');
+
+                if (game.money <= BANKRUPTCY_THRESHOLD && !game.gameOver) {
+                    triggerGameOver();
+                }
+                checkAchievements();
+            }
+
+            function triggerGameOver() {
+                game.gameOver = true;
+                gameSpeedMultiplier = 0;
+                document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                playSound('alarm');
+                document.getElementById('gameover-overlay').style.display = 'flex';
+            }
+
+            function drawChart() {
+                const canvas = document.getElementById('finance-chart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const data = game.revenueHistory.slice(-10);
+                const max = Math.max(...data, 1000);
+                const stepX = canvas.width / (data.length - 1 || 1);
+
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, 'rgba(199,162,75,0.35)');
+                gradient.addColorStop(1, 'rgba(199,162,75,0)');
+
+                ctx.beginPath();
+                data.forEach((val, i) => {
+                    const x = i * stepX;
+                    const y = canvas.height - (val / max) * (canvas.height - 15) - 5;
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.lineTo(0, canvas.height);
+                ctx.closePath();
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                ctx.strokeStyle = '#C7A24B'; ctx.lineWidth = 2; ctx.beginPath();
+                data.forEach((val, i) => {
+                    const x = i * stepX;
+                    const y = canvas.height - (val / max) * (canvas.height - 15) - 5;
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            }
+
+            function renameStation(stationId) {
+                const st = getStation(stationId);
+                if (!st) return;
+                const newName = prompt("Neuen Namen für den Bahnhof eingeben:", st.name);
+                if (newName && newName.trim() !== "") {
+                    st.name = newName.trim();
+                    if (st.marker) st.marker.setIcon(stationIcon(st));
+                    game.routes.forEach(r => {
+                        if (r.stationIds.includes(st.id)) {
+                            r.name = r.stationIds.map(id => getStation(id).name).join(" - ");
+                        }
+                    });
+                    renderLists();
+                    saveGame();
+                    toast(`Bahnhof umbenannt in "${st.name}"`);
+                }
+            }
+
+            function renameTrain(trainId) {
+                const tr = game.trains.find(t => t.id === trainId);
+                if (!tr) return;
+                const newName = prompt("Neuen Namen für den Zug eingeben:", tr.name);
+                if (newName && newName.trim() !== "") {
+                    tr.name = newName.trim();
+                    renderLists();
+                    saveGame();
+                    toast(`Zug umbenannt in "${tr.name}"`);
+                }
+            }
+
+            function upgradeStation(stationId) {
+                const st = getStation(stationId);
+                if (!st || st.level >= STATION_MAX_LEVEL) return;
+                const cost = stationUpgradeCost(st);
+                if (game.money < cost) { toast('Zu wenig Geld für den Ausbau!', 'error'); return; }
+                game.money -= cost;
+                st.level++;
+                if (st.marker) st.marker.setIcon(stationIcon(st));
+                playSound('upgrade');
+                toast(`🏗️ ${st.name} auf Stufe ${st.level} ausgebaut!`, 'success');
+                renderStats(); renderLists(); saveGame();
+            }
+
+            function renderLists() {
+                const sList = document.getElementById('station-list');
+                sList.innerHTML = game.stations.length === 0 ? '<div style="color:var(--steel);font-size:11px;">Keine Bahnhöfe gebaut.</div>' : '';
+                game.stations.forEach(st => {
+                    const pct = Math.min(100, Math.round((st.passengers / maxPassengersFor(st)) * 100));
+                    const barColor = pct > 90 ? 'var(--signal-red)' : (pct > 60 ? 'var(--signal-yellow)' : 'var(--rail-green)');
+                    const upgradeCost = stationUpgradeCost(st);
+                    const canUpgrade = st.level < STATION_MAX_LEVEL;
+                    const card = document.createElement('div'); card.className = 'card';
+                    card.innerHTML = `
+                        <div class="row1">
+                            <span class="name">🚉 ${st.name}</span>
+                            <button class="mini-btn secondary" data-rename-station="${st.id}" title="Umbenennen">✏️</button>
+                        </div>
+                        <div class="meta">Stufe: ${st.level}/${STATION_MAX_LEVEL} | Fahrgäste: <b>${Math.round(st.passengers)} / ${maxPassengersFor(st)}</b></div>
+                        <div class="progress-bar"><div style="width:${pct}%; background:${barColor};"></div></div>
+                        ${canUpgrade ? `<button class="mini-btn gold" data-upgrade-station="${st.id}">🏗️ Ausbauen (${fmt(upgradeCost)})</button>` : '<span class="badge">MAX. AUSGEBAUT</span>'}
+                    `;
+                    sList.appendChild(card);
+                });
+                sList.querySelectorAll('[data-rename-station]').forEach(b => b.onclick = () => renameStation(parseInt(b.dataset.renameStation)));
+                sList.querySelectorAll('[data-upgrade-station]').forEach(b => b.onclick = () => upgradeStation(parseInt(b.dataset.upgradeStation)));
+
+                const rList = document.getElementById('route-list');
+                rList.innerHTML = game.routes.length === 0 ? '<div style="color:var(--steel);font-size:11px;">Keine Strecken gebaut.</div>' : '';
+                game.routes.forEach(rt => {
+                    const card = document.createElement('div'); card.className = 'card';
+                    card.innerHTML = `
+                        <div class="row1"><span class="name">${rt.name}</span><span class="badge">${Math.round(rt.km)} km</span></div>
+                        <div class="meta">Ausbau: ${rt.isDoubleTrack ? '⚡ Zweigleisig' : '🛤️ Eingleisig'} | ${rt.isElectric ? '⚡ Elektrifiziert' : '⛽ Diesel'}</div>
+                        ${!rt.isElectric ? `<button class="mini-btn blue" data-electric="${rt.id}">Oberleitung (${fmt(Math.round(rt.km * 150))})</button>` : ''}
+                        ${!rt.isDoubleTrack ? `<button class="mini-btn" data-double="${rt.id}">2. Gleis bauen (${fmt(Math.round(rt.km * 200))})</button>` : ''}
+                    `;
+                    rList.appendChild(card);
+                });
+
+                rList.querySelectorAll('[data-electric]').forEach(b => b.onclick = () => upgradeRouteElectric(parseInt(b.dataset.electric)));
+                rList.querySelectorAll('[data-double]').forEach(b => b.onclick = () => upgradeRouteDouble(parseInt(b.dataset.double)));
+
+                const iList = document.getElementById('industry-list');
+                iList.innerHTML = '';
+                game.industries.forEach(ind => {
+                    const card = document.createElement('div'); card.className = 'card';
+                    card.innerHTML = `
+                        <div class="row1"><span class="name">${ind.icon} ${ind.name}</span></div>
+                        <div class="meta">Warenlager: <b>${Math.round(ind.cargo)} Einheiten</b></div>
+                    `;
+                    iList.appendChild(card);
+                });
+
+                const tList = document.getElementById('train-list');
+                tList.innerHTML = game.trains.length === 0 ? '<div style="color:var(--steel);font-size:11px;">Keine Züge vorhanden.</div>' : '';
+                game.trains.forEach(tr => {
+                    const type = TRAIN_TYPES[tr.type];
+                    const repairCost = Math.round((100 - tr.condition) * HARDCORE_CONFIG.repairCostPerPoint);
+                    const condColor = tr.condition > 60 ? 'var(--rail-green)' : (tr.condition > 30 ? 'var(--signal-yellow)' : 'var(--signal-red)');
+                    const card = document.createElement('div'); card.className = 'card';
+                    if (tr.routeId) {
+                        const route = game.routes.find(r => r.id === tr.routeId);
+                        card.innerHTML = `
+                            <div class="row1">
+                                <span class="name">${type.icon} ${tr.name}</span>
+                                <button class="mini-btn secondary" data-rename-train="${tr.id}" title="Umbenennen">✏️</button>
+                            </div>
+                            <div class="meta">Strecke: <b>${route ? route.name : 'Unbekannt'}</b></div>
+                            <div class="meta">Zustand: ${Math.round(tr.condition)}%</div>
+                            <div class="progress-bar"><div style="width:${Math.round(tr.condition)}%; background:${condColor};"></div></div>
+                            ${tr.condition < 95 ? `<button class="mini-btn" data-repair="${tr.id}">🔧 Reparieren (${fmt(repairCost)})</button>` : ''}
+                            <button class="mini-btn secondary" data-unassign="${tr.id}">Ins Depot</button>
+                            <button class="mini-btn red" data-sell="${tr.id}">Verkaufen</button>`;
+                    } else {
+                        const freeRoutes = game.routes.filter(r => !r.trainId);
+                        let opts = freeRoutes.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+                        card.innerHTML = `
+                            <div class="row1">
+                                <span class="name">${type.icon} ${tr.name}</span>
+                                <button class="mini-btn secondary" data-rename-train="${tr.id}" title="Umbenennen">✏️</button>
+                            </div>
+                            ${freeRoutes.length ? `<select data-assign-select="${tr.id}">${opts}</select><button class="mini-btn" data-assign="${tr.id}">Zuweisen</button>` : '<span class="badge">Depot</span>'}
+                            <button class="mini-btn red" data-sell="${tr.id}">Verkaufen</button>`;
+                    }
+                    tList.appendChild(card);
+                });
+
+                tList.querySelectorAll('[data-rename-train]').forEach(b => b.onclick = () => renameTrain(parseInt(b.dataset.renameTrain)));
+                tList.querySelectorAll('[data-unassign]').forEach(b => b.onclick = () => unassignTrain(parseInt(b.dataset.unassign)));
+                tList.querySelectorAll('[data-repair]').forEach(b => b.onclick = () => repairTrain(parseInt(b.dataset.repair)));
+                tList.querySelectorAll('[data-sell]').forEach(b => b.onclick = () => sellTrain(parseInt(b.dataset.sell)));
+                tList.querySelectorAll('[data-assign]').forEach(b => b.onclick = () => {
+                    const tid = parseInt(b.dataset.assign);
+                    const sel = tList.querySelector(`[data-assign-select="${tid}"]`);
+                    if (sel) assignTrain(tid, parseInt(sel.value));
+                });
+
+                const aList = document.getElementById('achievement-list');
+                aList.innerHTML = '';
+                ACHIEVEMENTS.forEach(a => {
+                    const unlocked = game.unlockedAchievements.includes(a.id);
+                    const row = document.createElement('div');
+                    row.className = 'card';
+                    row.style.opacity = unlocked ? '1' : '0.4';
+                    row.innerHTML = `<div class="row1"><span class="name">${a.label}</span>${unlocked ? '<span class="badge">✓</span>' : ''}</div>`;
+                    aList.appendChild(row);
+                });
+
+                drawChart();
+            }
+
+            function upgradeRouteElectric(routeId) {
+                const r = game.routes.find(rt => rt.id === routeId);
+                const cost = Math.round(r.km * 150);
+                if (game.money < cost) { toast('Zu wenig Geld!', 'error'); return; }
+                game.money -= cost; r.isElectric = true;
+                if (r.polyline) r.polyline.setStyle({ dashArray: '1, 6', weight: 6 });
+                playSound('build'); renderStats(); renderLists(); saveGame();
+            }
+
+            function upgradeRouteDouble(routeId) {
+                const r = game.routes.find(rt => rt.id === routeId);
+                const cost = Math.round(r.km * 200);
+                if (game.money < cost) { toast('Zu wenig Geld!', 'error'); return; }
+                game.money -= cost; r.isDoubleTrack = true;
+                playSound('build'); renderStats(); renderLists(); saveGame();
+            }
+
+            function stationIcon(st) {
+                const borderCol = LEVEL_COLORS[st.level - 1];
+                const overcrowded = st.passengers >= maxPassengersFor(st) * 0.95;
+                return L.divIcon({
+                    html: `<div class="station-wrap">
+                        <div class="station-ring ${overcrowded ? 'overcrowded' : ''}" id="st-ring-${st.id}" style="border-color:${borderCol}">${st.level}</div>
+                        <div class="station-label">${st.name}</div>
+                        <div class="station-passengers ${overcrowded ? 'full' : ''}" id="st-pass-${st.id}">👥 ${Math.round(st.passengers)}</div>
+                    </div>`, iconSize: [0, 0]
+                });
+            }
+
+            function industryIcon(ind) {
+                return L.divIcon({
+                    html: `<div class="industry-icon" title="${ind.name}">${ind.icon}</div>`,
+                    iconSize: [26, 26]
+                });
+            }
+
+            function stellwerkIcon(sw) {
+                return L.divIcon({ html: `<div class="stellwerk-icon">📶</div>`, iconSize: [22, 22] });
+            }
+
+            function tryBuildStation(latlng) {
+                const cost = stationBuildCost();
+                if (game.money < cost) { toast('Zu wenig Guthaben!', 'error'); return; }
+                game.money -= cost; game.stationBuildCount++;
+
+                const defaultCityName = getRandomCityName();
+                const customName = prompt(`Station benennen (Standard: ${defaultCityName}):`, defaultCityName);
+                const finalName = (customName && customName.trim() !== "") ? customName.trim() : defaultCityName;
+
+                const st = { id: uid(), name: finalName, latlng: latlng, level: 1, passengers: 50 };
+                game.stations.push(st);
+                st.marker = L.marker(latlng, { icon: stationIcon(st) });
+                st.marker.on('click', () => onStationClick(st));
+                stationClusterGroup.addLayer(st.marker);
+                playSound('build'); renderStats(); renderLists(); saveGame();
+            }
+
+            function tryBuildStellwerk(latlng) {
+                if (game.money < STELLWERK_COST) { toast('Zu wenig Geld!', 'error'); return; }
+                game.money -= STELLWERK_COST;
+                const sw = { id: uid(), name: "Stellwerk " + (game.stellwerke.length + 1), latlng: latlng };
+                game.stellwerke.push(sw);
+                sw.marker = L.marker(latlng, { icon: stellwerkIcon(sw), pane: 'stellwerkPane' }).addTo(map);
+                playSound('build'); setMode(null); renderStats(); renderLists(); saveGame();
+            }
+
+            function onStationClick(st) {
+                if (game.mode !== 'connect') return;
+                if (game.selectedLineStations.includes(st.id)) return;
+                game.selectedLineStations.push(st.id);
+                const ring = document.getElementById(`st-ring-${st.id}`);
+                if (ring) ring.classList.add('selected');
+                updateLinePreview();
+            }
+
+            function updateLinePreview() {
+                if (game.tempPolyline) { map.removeLayer(game.tempPolyline); game.tempPolyline = null; }
+                if (game.selectedLineStations.length < 1) return;
+                const latlngs = game.selectedLineStations.map(id => getStation(id).latlng);
+                if (latlngs.length > 1) {
+                    game.tempPolyline = L.polyline(latlngs, { color: 'var(--signal-yellow)', weight: 4, dashArray: '6, 8' }).addTo(map);
+                }
+                const km = calculateLineDistance(game.selectedLineStations);
+                document.getElementById('cost-current-line').textContent = fmt(lineCostForKm(km));
+            }
+
+            function finishLine() {
+                if (game.selectedLineStations.length < 2) return;
+                const km = calculateLineDistance(game.selectedLineStations);
+                const cost = lineCostForKm(km);
+                if (game.money < cost) { toast('Guthaben reicht nicht!', 'error'); return; }
+                game.money -= cost; game.totalKm += km;
+                const route = {
+                    id: uid(),
+                    name: game.selectedLineStations.map(id => getStation(id).name).join(" - "),
+                    stationIds: [...game.selectedLineStations],
+                    km: km, trainId: null, isElectric: false, isDoubleTrack: false
+                };
+                game.routes.push(route);
+                drawRoute(route);
+                playSound('build'); resetLineBuilder(); setMode(null); renderStats(); renderLists(); saveGame();
+            }
+
+            function resetLineBuilder() {
+                game.selectedLineStations.forEach(id => {
+                    const ring = document.getElementById(`st-ring-${id}`);
+                    if (ring) ring.classList.remove('selected');
+                });
+                game.selectedLineStations = [];
+                if (game.tempPolyline) { map.removeLayer(game.tempPolyline); game.tempPolyline = null; }
+            }
+
+            function drawRoute(route) {
+                const latlngs = route.stationIds.map(id => getStation(id).latlng);
+                route.polyline = L.polyline(latlngs, {
+                    color: 'var(--brass)',
+                    weight: route.isDoubleTrack ? 7 : 4,
+                    dashArray: route.isElectric ? '1, 6' : null,
+                    pane: 'routePane'
+                }).addTo(map);
+            }
+
+            function buyTrain(type) {
+                const cost = trainCost(type);
+                if (game.money < cost) { toast('Zu wenig Guthaben!', 'error'); return; }
+                game.money -= cost; game.trainCounts[type]++;
+
+                const defaultTrainName = TRAIN_TYPES[type].label + ' ' + game.trainCounts[type];
+                game.trains.push({ id: uid(), type, name: defaultTrainName, routeId: null, segIndex: 0, progress: 0, direction: 1, condition: 100, dwellRemaining: 0 });
+                playSound('cash'); renderStats(); renderLists(); saveGame();
+            }
+
+            function sellTrain(trainId) {
+                const tr = game.trains.find(t => t.id === trainId);
+                if (!tr) return;
+                if (!confirm(`"${tr.name}" wirklich verkaufen?`)) return;
+                const refund = Math.round(TRAIN_TYPES[tr.type].baseCost * 0.4 * (tr.condition / 100));
+                game.money += refund;
+                if (tr.routeId) {
+                    const route = game.routes.find(r => r.id === tr.routeId);
+                    if (route) route.trainId = null;
+                }
+                if (tr.marker) map.removeLayer(tr.marker);
+                game.trains = game.trains.filter(t => t.id !== trainId);
+                toast(`Zug verkauft für ${fmt(refund)}`);
+                playSound('cash'); renderStats(); renderLists(); saveGame();
+            }
+
+            function assignTrain(trainId, routeId) {
+                const tr = game.trains.find(t => t.id === trainId);
+                const route = game.routes.find(r => r.id === routeId);
+                if (!tr || !route) return;
+
+                if (TRAIN_TYPES[tr.type].requireElectric && !route.isElectric) {
+                    toast('🚄 ICE benötigt eine elektrifizierte Oberleitung!', 'error');
+                    return;
+                }
+
+                tr.routeId = route.id; tr.segIndex = 0; tr.progress = 0; tr.direction = 1; tr.dwellRemaining = 0; route.trainId = tr.id;
+                const startStation = getStation(route.stationIds[0]);
+                tr.marker = L.marker(startStation.latlng, {
+                    icon: L.divIcon({ html: `<div class="train-outer"><div class="train-inner" id="tr-inner-${tr.id}"><div class="train-body" style="background:${TRAIN_TYPES[tr.type].color}"></div></div></div>`, iconSize: [22, 22] }),
+                    pane: 'trainPane'
+                }).addTo(map);
+                renderLists(); saveGame();
+            }
+
+            function unassignTrain(trainId) {
+                const tr = game.trains.find(t => t.id === trainId);
+                if (!tr) return;
+                const route = game.routes.find(r => r.id === tr.routeId);
+                if (route) route.trainId = null;
+                if (tr.marker) map.removeLayer(tr.marker);
+                tr.routeId = null; renderLists(); saveGame();
+            }
+
+            function repairTrain(trainId) {
+                const tr = game.trains.find(t => t.id === trainId);
+                const cost = Math.round((100 - tr.condition) * HARDCORE_CONFIG.repairCostPerPoint);
+                if (game.money < cost) { toast('Zu wenig Geld!', 'error'); return; }
+                game.money -= cost; tr.condition = 100;
+                playSound('build'); renderStats(); renderLists(); saveGame();
+            }
+
+            function triggerRandomEvents() {
+                if (game.activeEvent) return;
+                if (Math.random() < 0.001) {
+                    const events = [
+                        { name: "⚠️ Sturmtief 'Orkan': Zugtempo auf 50% reduziert", speedMult: 0.5, duration: 120 },
+                        { name: "🎉 Ferienbeginn: +60% Fahrgast-Boom", paxMult: 1.6, duration: 180 },
+                        { name: "🔧 Oberleitungsschaden: Höherer Verschleiß", wearMult: 2.0, duration: 150 }
+                    ];
+                    game.activeEvent = events[Math.floor(Math.random() * events.length)];
+                    game.eventTimer = game.activeEvent.duration;
+                    toast(`EREIGNIS: ${game.activeEvent.name}`, 'error');
+                }
+            }
+
+            function updateWeather(dtGameMins) {
+                game.weatherTimer -= dtGameMins;
+                if (game.weatherTimer <= 0) {
+                    const next = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+                    if (next.key !== game.weather.key) {
+                        game.weather = next;
+                        toast(`Wetterwechsel: ${next.label}`);
+                    }
+                    game.weatherTimer = 180 + Math.random() * 240;
+                }
+            }
+
+            function handleArrivalAtStation(route, tr, targetStation, originStation, legKm) {
+                const type = TRAIN_TYPES[tr.type];
+                const fuelCost = Math.round(legKm * type.fuelPerKm);
+                game.money -= fuelCost;
+
+                let income = 0;
+                let onTime = tr.condition > 40 && game.weather.key !== 'storm';
+                if (tr.type === 'cargo') {
+                    const NEARBY_RADIUS_KM = 25;
+                    const nearbyIndustry = game.industries.find(ind => ind.latlng.distanceTo(originStation.latlng) / 1000 <= NEARBY_RADIUS_KM && ind.cargo > 5);
+                    if (nearbyIndustry) {
+                        const loaded = Math.min(nearbyIndustry.cargo, 40 + Math.round(Math.random() * 30));
+                        nearbyIndustry.cargo -= loaded;
+                        income = Math.round(loaded * (legKm * 0.9 + 8));
+                        spawnFloat(nearbyIndustry.latlng, `📦 -${Math.round(loaded)}`, false);
+                    } else {
+                        income = Math.round(legKm * 1.1 + 40);
+                    }
+                } else {
+                    let paxDemand = game.ticketPriceMultiplier > 1.2 ? 0.5 : (game.ticketPriceMultiplier < 1.0 ? 1.3 : 1.0);
+                    if (game.activeEvent && game.activeEvent.paxMult) paxDemand *= game.activeEvent.paxMult;
+                    paxDemand *= (0.7 + game.reputation / 200);
+
+                    let onboard = Math.min(Math.round(originStation.passengers * paxDemand), type.capacity);
+                    originStation.passengers = Math.max(0, originStation.passengers - onboard);
+
+                    let fare = (tr.type === 'ice' ? 0.18 : 0.09) * game.ticketPriceMultiplier;
+                    income = Math.round(onboard * (legKm * fare + 3.00));
+                }
+
+                game.money += income;
+                playSound('cash');
+                spawnFloat(targetStation.latlng, `+${fmt(income - fuelCost)}`, income >= fuelCost);
+
+                game.reputation = Math.max(0, Math.min(100, game.reputation + (onTime ? 0.15 : -0.6)));
+
+                let wearMult = (game.activeEvent && game.activeEvent.wearMult) ? game.activeEvent.wearMult : 1.0;
+                wearMult *= game.weather.wearMult;
+                tr.condition = Math.max(0, tr.condition - (legKm * 0.04 * wearMult));
+                renderStats();
+            }
+
+            function spawnFloat(latlng, text, isIncome) {
+                const icon = L.divIcon({ html: `<div class="${isIncome ? 'income-float' : 'expense-float'}">${text}</div>`, iconSize: [0, 0] });
+                const m = L.marker(latlng, { icon, pane: 'fxPane', interactive: false }).addTo(map);
+                setTimeout(() => map.removeLayer(m), 1200);
+            }
+
+            function spawnSteam(latlng) {
+                if (Math.random() > 0.3) return;
+                const icon = L.divIcon({ html: `<div class="steam-cloud"></div>`, iconSize: [0, 0] });
+                const m = L.marker(latlng, { icon, pane: 'fxPane', interactive: false }).addTo(map);
+                setTimeout(() => map.removeLayer(m), 800);
+            }
+
+            document.getElementById('btn-build-station').onclick = () => setMode('build-station');
+            document.getElementById('btn-build-route').onclick = () => setMode('connect');
+            document.getElementById('btn-build-stellwerk').onclick = () => setMode('stellwerk');
+            document.getElementById('btn-finish-line').onclick = () => finishLine();
+            document.getElementById('btn-cancel-line').onclick = () => resetLineBuilder();
+
+            document.getElementById('btn-buy-cargo').onclick = () => buyTrain('cargo');
+            document.getElementById('btn-buy-regio').onclick = () => buyTrain('regio');
+            document.getElementById('btn-buy-ice').onclick = () => buyTrain('ice');
+
+            document.getElementById('btn-take-loan').onclick = () => {
+                if (game.loan >= 50000) { toast('Kreditlimit erreicht!', 'error'); return; }
+                game.loan += 5000; game.money += 5000; playSound('cash'); renderStats(); saveGame();
+            };
+            document.getElementById('btn-repay-loan').onclick = () => {
+                if (game.loan <= 0) return;
+                if (game.money < 5000) { toast('Zu wenig Geld zum Tilgen!', 'error'); return; }
+                game.money -= 5000; game.loan = Math.max(0, game.loan - 5000); playSound('cash'); renderStats(); saveGame();
+            };
+
+            document.getElementById('select-ticket-price').onchange = (e) => {
+                game.ticketPriceMultiplier = parseFloat(e.target.value);
+                toast(`Ticketpreis geändert auf Faktor ${game.ticketPriceMultiplier}x`);
+                saveGame();
+            };
+
+            function restartGame() {
+                playSound('reset');
+                localStorage.clear();
+                location.reload();
+            }
+
+            document.getElementById('btn-reset').onclick = () => {
+                if (confirm("⚠️ Kompletten Spielstand unwiderruflich löschen?")) restartGame();
+            };
+            document.getElementById('btn-gameover-restart').onclick = restartGame;
+
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.onclick = () => {
+                    if (game.gameOver) return;
+                    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    gameSpeedMultiplier = parseFloat(btn.dataset.speed);
+                };
+            });
+
+            function setMode(m) {
+                resetLineBuilder();
+                game.mode = game.mode === m ? null : m;
+                document.getElementById('btn-build-station').classList.toggle('active', game.mode === 'build-station');
+                document.getElementById('btn-build-route').classList.toggle('active', game.mode === 'connect');
+                document.getElementById('btn-build-stellwerk').classList.toggle('active', game.mode === 'stellwerk');
+                document.getElementById('line-builder-controls').style.display = game.mode === 'connect' ? 'block' : 'none';
+                document.getElementById('map-wrap').className = game.mode ? 'mode-' + game.mode : '';
+            }
+
+            map.on('click', (e) => {
+                if (game.gameOver) return;
+                if (game.mode === 'build-station') tryBuildStation(e.latlng);
+                else if (game.mode === 'stellwerk') tryBuildStellwerk(e.latlng);
+            });
+
+            let lastTime = performance.now();
+            function loop(now) {
+                const dtReal = Math.min(0.1, (now - lastTime) / 1000);
+                lastTime = now;
+                const dtGameMins = dtReal * GAME_TIME_SCALE * gameSpeedMultiplier;
+
+                if (gameSpeedMultiplier > 0 && !game.gameOver) {
+                    game.gameMinutes += dtGameMins;
+                    updateWeather(dtGameMins);
+
+                    if (game.activeEvent) {
+                        game.eventTimer -= dtGameMins;
+                        document.getElementById('event-banner').textContent = `${game.activeEvent.name} (${Math.round(game.eventTimer)} Min)`;
+                        if (game.eventTimer <= 0) { game.activeEvent = null; toast('Ereignis beendet.'); }
+                    } else {
+                        document.getElementById('event-banner').textContent = `Normaler Betrieb bei ${game.weather.label}.`;
+                        triggerRandomEvents();
+                    }
+
+                    if (game.gameMinutes >= 24 * 60) {
+                        game.gameMinutes -= 24 * 60; game.day++;
+                        const upkeep = calculateDailyUpkeep();
+                        game.money -= upkeep;
+                        game.revenueHistory.push(Math.max(100, Math.round(game.money / 10)));
+                        toast(`Tag ${game.day}: Unterhalt -${fmt(upkeep)}`, 'error');
+                        drawChart();
+                    }
+
+                    game.stations.forEach(st => {
+                        st.passengers = Math.min(maxPassengersFor(st), st.passengers + (st.level * HARDCORE_CONFIG.paxGrowthRate * dtGameMins));
+                        const el = document.getElementById(`st-pass-${st.id}`);
+                        const overcrowded = st.passengers >= maxPassengersFor(st) * 0.95;
+                        if (el) {
+                            el.textContent = `👥 ${Math.round(st.passengers)}`;
+                            el.classList.toggle('full', overcrowded);
+                        }
+                        const ring = document.getElementById(`st-ring-${st.id}`);
+                        if (ring) ring.classList.toggle('overcrowded', overcrowded);
+                    });
+
+                    game.industries.forEach(ind => {
+                        ind.cargo = Math.min(300, ind.cargo + 0.6 * dtGameMins);
+                    });
+
+                    game.trains.forEach(tr => {
+                        if (!tr.routeId || !tr.marker) return;
+                        const route = game.routes.find(r => r.id === tr.routeId);
+                        if (!route || route.stationIds.length < 2) return;
+
+                        // Haltephase am Bahnhof: Zug steht still, bevor er weiterfährt
+                        if (tr.dwellRemaining > 0) {
+                            tr.dwellRemaining -= dtGameMins;
+                            const el = document.getElementById(`tr-inner-${tr.id}`);
+                            if (el) el.style.opacity = (Math.floor(tr.dwellRemaining) % 2 === 0) ? '1' : '0.55';
+                            if (tr.dwellRemaining <= 0) {
+                                tr.dwellRemaining = 0;
+                                const el2 = document.getElementById(`tr-inner-${tr.id}`);
+                                if (el2) el2.style.opacity = '1';
+                                if (tr.segIndex >= route.stationIds.length - 1 || tr.segIndex <= 0) tr.direction *= -1;
+                            }
+                            return;
+                        }
+
+                        const a = getStation(route.stationIds[tr.segIndex]);
+                        const b = getStation(route.stationIds[tr.segIndex + tr.direction]);
+                        if (!a || !b) return;
+
+                        const legKm = a.latlng.distanceTo(b.latlng) / 1000;
+                        let eventSpeed = (game.activeEvent && game.activeEvent.speedMult) ? game.activeEvent.speedMult : 1.0;
+                        const conditionFactor = tr.condition < 15 ? Math.max(0.15, tr.condition / 100) : Math.max(0.2, tr.condition / 100);
+                        const speed = TRAIN_TYPES[tr.type].speed * conditionFactor * eventSpeed * game.weather.speedMult;
+                        const tripMins = (legKm / speed) * 60;
+
+                        tr.progress += dtGameMins / tripMins;
+
+                        if (tr.progress >= 1) {
+                            tr.progress = 0;
+                            tr.segIndex += tr.direction;
+                            handleArrivalAtStation(route, tr, b, a, legKm);
+                            tr.dwellRemaining = STATION_DWELL_MINUTES;
+                            spawnFloat(b.latlng, '🚉', true);
+                        }
+
+                        const lat = a.latlng.lat + (b.latlng.lat - a.latlng.lat) * tr.progress;
+                        const lng = a.latlng.lng + (b.latlng.lng - a.latlng.lng) * tr.progress;
+                        const curLatLng = L.latLng(lat, lng);
+                        tr.marker.setLatLng(curLatLng);
+                        spawnSteam(curLatLng);
+
+                        const pa = map.latLngToContainerPoint(a.latlng);
+                        const pb = map.latLngToContainerPoint(b.latlng);
+                        let angle = Math.atan2(pb.y - pa.y, pb.x - pa.x) * 180 / Math.PI;
+                        const el = document.getElementById(`tr-inner-${tr.id}`);
+                        if (el) {
+                            el.style.transform = `rotate(${angle}deg)`;
+                            const body = el.querySelector('.train-body');
+                            if (body) body.classList.toggle('broken', tr.condition < 20);
+                        }
+                    });
+                }
+
+                renderStats();
+                requestAnimationFrame(loop);
+            }
+
+            initWorldObjects();
+            loadGame();
+            initWorldObjects();
+            if (!game.weather || !game.weather.key) game.weather = WEATHER_TYPES[0];
+
+            game.industries.forEach(ind => { L.marker(ind.latlng, { icon: industryIcon(ind) }).addTo(map); });
+            game.stations.forEach(st => {
+                st.marker = L.marker(st.latlng, { icon: stationIcon(st) });
+                st.marker.on('click', () => onStationClick(st));
+                stationClusterGroup.addLayer(st.marker);
+            });
+            game.stellwerke.forEach(sw => { L.marker(sw.latlng, { icon: stellwerkIcon(sw), pane: 'stellwerkPane' }).addTo(map); });
+            game.routes.forEach(r => drawRoute(r));
+            game.trains.forEach(t => {
+                if (t.routeId) {
+                    const route = game.routes.find(r => r.id === t.routeId);
+                    if (route) {
+                        const startStation = getStation(route.stationIds[t.segIndex || 0]) || getStation(route.stationIds[0]);
+                        t.marker = L.marker(startStation.latlng, {
+                            icon: L.divIcon({ html: `<div class="train-outer"><div class="train-inner" id="tr-inner-${t.id}"><div class="train-body" style="background:${TRAIN_TYPES[t.type].color}"></div></div></div>`, iconSize: [22, 22] }),
+                            pane: 'trainPane'
+                        }).addTo(map);
+                    }
+                }
+            });
+
+            renderStats();
+            renderLists();
+            requestAnimationFrame(loop);
+        })();
+    </script>
+</body>
+
+</html>
